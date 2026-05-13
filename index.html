@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Controle de Tarefas — E&amp;M / MTC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css" />
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f0eff4;
+  --surface: #ffffff;
+  --surface2: #e8e7ed;
+  --border: #d0cfd8;
+  --border2: #b0afc0;
+  --text: #0f0e18;
+  --text2: #3d3c50;
+  --text3: #7c7b90;
+  --accent: #2952d4;
+  /* vermelho forte */
+  --red: #c0000a; --red-bg: #fff0f0; --red-bd: #ffa8aa; --red-solid: #e8001a;
+  /* laranja forte */
+  --ora: #b84400; --ora-bg: #fff4ed; --ora-bd: #ffb380; --ora-solid: #e05500;
+  /* verde forte */
+  --grn: #006e2e; --grn-bg: #edfbf3; --grn-bd: #5dd68a; --grn-solid: #008a38;
+  /* azul forte */
+  --blu: #1540b0; --blu-bg: #edf2ff; --blu-bd: #7a9ef5; --blu-solid: #2952d4;
+  --r-sm: 6px; --r-md: 10px; --r-lg: 14px;
+}
+body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; line-height: 1.5; }
+input, select, textarea, button { font-family: inherit; }
+input, select, textarea {
+  width: 100%; padding: 9px 12px; border: 1.5px solid var(--border2);
+  border-radius: var(--r-sm); font-size: 14px; color: var(--text);
+  background: var(--surface); outline: none; transition: border-color 0.15s;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(41,82,212,0.12); }
+textarea { resize: vertical; min-height: 70px; line-height: 1.5; }
+button { cursor: pointer; font-size: 14px; border-radius: var(--r-sm); transition: all 0.15s; }
+.bp { background: var(--accent); color: #fff; padding: 10px 18px; border: none; font-weight: 600; }
+.bp:hover { background: #1f3fa8; }
+.bg { background: transparent; color: var(--text2); padding: 10px 18px; border: 1.5px solid var(--border2); }
+.bg:hover { background: var(--surface2); }
+.bi { background: transparent; color: var(--text3); padding: 7px 10px; border: 1.5px solid var(--border); line-height: 1; }
+.bi:hover { color: var(--red); border-color: var(--red-bd); background: var(--red-bg); }
+label { display: block; font-size: 13px; font-weight: 600; color: var(--text2); margin-bottom: 5px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const CATS = [
+  { v:'geral', l:'Geral' },
+  { v:'serradelrey', l:'Serra Del Rey' },
+  { v:'minasii', l:'Minas II' },
+  { v:'cotacao', l:'Cotação / Fornecedor' },
+  { v:'manutencao', l:'Manutenção' },
+  { v:'pmi', l:'PMI / 3D Printing' },
+  { v:'contrato', l:'Contrato / Aprovação' },
+];
+
+const PRIOS = [
+  { v:'baixa',   l:'Baixa',   c:'var(--grn)',     bg:'var(--grn-bg)',  dot:'#00a844' },
+  { v:'normal',  l:'Normal',  c:'#7a5800',        bg:'#fffbeb',        dot:'#e0a800' },
+  { v:'alta',    l:'Alta',    c:'var(--ora)',      bg:'var(--ora-bg)',  dot:'var(--ora-solid)' },
+  { v:'urgente', l:'Urgente', c:'var(--red)',      bg:'var(--red-bg)',  dot:'var(--red-solid)' },
+];
+
+function daysUntil(d) {
+  const t = new Date(); t.setHours(0,0,0,0);
+  const x = new Date(d + 'T00:00:00');
+  return Math.ceil((x - t) / 86400000);
+}
+
+function DueBadge({ dueDate, status }) {
+  const days = daysUntil(dueDate);
+  let c, bg, bd, label, icon;
+  if (status === 'concluida') {
+    c='var(--grn)'; bg='var(--grn-bg)'; bd='var(--grn-bd)'; label='Concluído'; icon='ti-circle-check';
+  } else if (days < 0) {
+    c='var(--red)'; bg='var(--red-bg)'; bd='var(--red-bd)'; label=Math.abs(days)+'d atrasada'; icon='ti-alert-circle';
+  } else if (days === 0) {
+    c='var(--ora)'; bg='var(--ora-bg)'; bd='var(--ora-bd)'; label='Vence hoje'; icon='ti-clock-exclamation';
+  } else if (days <= 3) {
+    c='var(--ora)'; bg='var(--ora-bg)'; bd='var(--ora-bd)'; label=days+'d restantes'; icon='ti-clock';
+  } else {
+    c='var(--blu)'; bg='var(--blu-bg)'; bd='var(--blu-bd)'; label=days+'d restantes'; icon='ti-calendar';
+  }
+  return (
+    <span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:12,fontWeight:600,color:c,background:bg,border:'1px solid '+bd,padding:'3px 9px',borderRadius:20}}>
+      <i className={"ti "+icon} style={{fontSize:13}} />
+      {label}
+    </span>
+  );
+}
+
+function TaskCard({ task, onUpdate, onDelete }) {
+  const [editing, setEditing] = useState(false);
+  const [ed, setEd] = useState(task);
+  const days = daysUntil(task.dueDate);
+  const isOver = task.status !== 'concluida' && days < 0;
+  const isUrg  = task.status !== 'concluida' && days >= 0 && days <= 3;
+  const bar = task.status === 'concluida' ? 'var(--grn-solid)' : isOver ? 'var(--red-solid)' : isUrg ? 'var(--ora-solid)' : 'var(--border2)';
+  const prio = PRIOS.find(p => p.v === task.priority);
+  const cat  = CATS.find(c => c.v === task.category);
+
+  if (editing) return (
+    <div style={{background:'var(--surface)',border:'1.5px solid var(--border2)',borderRadius:'var(--r-lg)',padding:'1rem',borderLeft:'4px solid '+bar}}>
+      <div style={{display:'grid',gap:10}}>
+        <div><label>Título</label><input value={ed.title} onChange={e=>setEd({...ed,title:e.target.value})} /></div>
+        <div><label>Descrição</label><textarea value={ed.description} onChange={e=>setEd({...ed,description:e.target.value})} /></div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+          <div><label>Vencimento</label><input type="date" value={ed.dueDate} onChange={e=>setEd({...ed,dueDate:e.target.value})} /></div>
+          <div><label>Status</label>
+            <select value={ed.status} onChange={e=>setEd({...ed,status:e.target.value})}>
+              <option value="naoFez">A fazer</option>
+              <option value="emAndamento">Em andamento</option>
+              <option value="concluida">Concluída</option>
+            </select>
+          </div>
+          <div><label>Prioridade</label>
+            <select value={ed.priority} onChange={e=>setEd({...ed,priority:e.target.value})}>
+              {PRIOS.map(p=><option key={p.v} value={p.v}>{p.l}</option>)}
+            </select>
+          </div>
+          <div><label>Categoria</label>
+            <select value={ed.category} onChange={e=>setEd({...ed,category:e.target.value})}>
+              {CATS.map(c=><option key={c.v} value={c.v}>{c.l}</option>)}
+            </select>
+          </div>
+        </div>
+        <div style={{display:'flex',gap:8}}>
+          <button className="bp" style={{flex:1}} onClick={()=>{onUpdate(task.id,ed);setEditing(false);}}>Salvar</button>
+          <button className="bg" style={{flex:1}} onClick={()=>setEditing(false)}>Cancelar</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{background:'var(--surface)',border:'1.5px solid var(--border)',borderRadius:'var(--r-lg)',padding:'1rem',borderLeft:'5px solid '+bar,boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:8}}>
+        <h4 style={{fontSize:15,fontWeight:600,color:'var(--text)',lineHeight:1.3}}>{task.title}</h4>
+        <div style={{display:'flex',gap:6,flexShrink:0}}>
+          <button className="bi" onClick={()=>setEditing(true)} title="Editar"><i className="ti ti-pencil" /></button>
+          <button className="bi" onClick={()=>onDelete(task.id)} title="Excluir"><i className="ti ti-trash" /></button>
+        </div>
+      </div>
+      {task.description && <p style={{fontSize:13,color:'var(--text2)',marginBottom:10,lineHeight:1.5}}>{task.description}</p>}
+      <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:12}}>
+        <DueBadge dueDate={task.dueDate} status={task.status} />
+        {prio && (
+          <span style={{display:'inline-flex',alignItems:'center',gap:5,fontSize:12,fontWeight:600,color:prio.c,background:prio.bg,border:'1px solid',borderColor:prio.bg,padding:'3px 9px',borderRadius:20}}>
+            <span style={{width:7,height:7,borderRadius:'50%',background:prio.dot,display:'inline-block'}} />
+            {prio.l}
+          </span>
+        )}
+        {cat && <span style={{fontSize:12,fontWeight:500,color:'var(--text2)',background:'var(--surface2)',border:'1px solid var(--border)',padding:'3px 9px',borderRadius:20}}>{cat.l}</span>}
+      </div>
+      <div style={{display:'flex',alignItems:'center',gap:8,borderTop:'1.5px solid var(--border)',paddingTop:10}}>
+        <span style={{fontSize:12,color:'var(--text3)',flexShrink:0,fontWeight:500}}>Status:</span>
+        <select value={task.status} onChange={e=>onUpdate(task.id,{status:e.target.value})} style={{width:'auto',flex:1,padding:'5px 10px',fontSize:13,fontWeight:500}}>
+          <option value="naoFez">📋 A fazer</option>
+          <option value="emAndamento">⚙️ Em andamento</option>
+          <option value="concluida">✅ Concluída</option>
+        </select>
+      </div>
+    </div>
+  );
+}
+
+function NewTaskForm({ onAdd, onCancel }) {
+  const [f, setF] = useState({title:'',description:'',dueDate:'',priority:'normal',category:'geral',status:'naoFez'});
+  const ref = useRef();
+  useEffect(()=>{ref.current && ref.current.focus();},[]);
+  function submit(e) {
+    e.preventDefault();
+    if (!f.title.trim()) { alert('Informe o título.'); return; }
+    if (!f.dueDate) { alert('Informe a data de vencimento.'); return; }
+    onAdd({...f, id:Date.now(), createdAt:new Date().toISOString()});
+  }
+  return (
+    <div style={{background:'var(--surface)',border:'1.5px solid var(--accent)',borderRadius:'var(--r-lg)',padding:'1.25rem',marginBottom:'1.5rem',boxShadow:'0 2px 12px rgba(41,82,212,0.10)'}}>
+      <h3 style={{fontSize:15,fontWeight:700,marginBottom:'1rem',color:'var(--accent)'}}>
+        <i className="ti ti-plus" style={{marginRight:6}} />
+        Nova tarefa
+      </h3>
+      <form onSubmit={submit} style={{display:'grid',gap:12}}>
+        <div><label>Título *</label><input ref={ref} value={f.title} onChange={e=>setF({...f,title:e.target.value})} placeholder="Ex: Aguardar proposta da Mineração Caju" /></div>
+        <div><label>Descrição</label><textarea value={f.description} onChange={e=>setF({...f,description:e.target.value})} placeholder="Detalhes, referências, links..." /></div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+          <div><label>Vencimento *</label><input type="date" value={f.dueDate} onChange={e=>setF({...f,dueDate:e.target.value})} /></div>
+          <div><label>Prioridade</label>
+            <select value={f.priority} onChange={e=>setF({...f,priority:e.target.value})}>
+              {PRIOS.map(p=><option key={p.v} value={p.v}>{p.l}</option>)}
+            </select>
+          </div>
+        </div>
+        <div><label>Categoria</label>
+          <select value={f.category} onChange={e=>setF({...f,category:e.target.value})}>
+            {CATS.map(c=><option key={c.v} value={c.v}>{c.l}</option>)}
+          </select>
+        </div>
+        <div style={{display:'flex',gap:10,paddingTop:4}}>
+          <button type="submit" className="bp" style={{flex:1}}>Adicionar tarefa</button>
+          <button type="button" className="bg" onClick={onCancel} style={{flex:1}}>Cancelar</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function App() {
+  const [tasks, setTasks]       = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [fStatus, setFStatus]   = useState('ativas');   // padrão: só tarefas ativas
+  const [fCat, setFCat]         = useState('todas');
+  const [search, setSearch]     = useState('');
+  const [showDone, setShowDone] = useState(false);      // concluídas ocultas por padrão
+
+  useEffect(()=>{
+    try { const s=localStorage.getItem('mtc-tasks-v4'); if(s) setTasks(JSON.parse(s)); } catch{}
+  },[]);
+  useEffect(()=>{ localStorage.setItem('mtc-tasks-v4', JSON.stringify(tasks)); },[tasks]);
+
+  const addTask    = t  => { setTasks(p=>[t,...p]); setShowForm(false); };
+  const updateTask = (id, u) => setTasks(p=>p.map(t=>t.id===id?{...t,...u}:t));
+  const deleteTask = id => { if(confirm('Excluir esta tarefa?')) setTasks(p=>p.filter(t=>t.id!==id)); };
+
+  const overdue = tasks.filter(t=>t.status!=='concluida'&&daysUntil(t.dueDate)<0).length;
+  const urgent  = tasks.filter(t=>{const d=daysUntil(t.dueDate);return t.status!=='concluida'&&d>=0&&d<=3;}).length;
+  const active  = tasks.filter(t=>t.status!=='concluida').length;
+  const done    = tasks.filter(t=>t.status==='concluida').length;
+
+  const activeTasks = tasks
+    .filter(t => t.status !== 'concluida')
+    .filter(t => {
+      if(fStatus==='atrasadas') return daysUntil(t.dueDate)<0;
+      if(fStatus==='emAndamento') return t.status==='emAndamento';
+      if(fStatus==='naoFez') return t.status==='naoFez';
+      return true;
+    })
+    .filter(t => fCat==='todas' || t.category===fCat)
+    .filter(t => !search || t.title.toLowerCase().includes(search.toLowerCase()) || (t.description||'').toLowerCase().includes(search.toLowerCase()))
+    .sort((a,b)=>new Date(a.dueDate)-new Date(b.dueDate));
+
+  const doneTasks = tasks
+    .filter(t => t.status === 'concluida')
+    .filter(t => !search || t.title.toLowerCase().includes(search.toLowerCase()))
+    .sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))
+    .slice(0,20);
+
+  const stats = [
+    {l:'Atrasadas',   v:overdue, c:'var(--red)', bg:'var(--red-bg)', bd:'var(--red-bd)', solid:'var(--red-solid)'},
+    {l:'Próx. 3 dias',v:urgent,  c:'var(--ora)', bg:'var(--ora-bg)', bd:'var(--ora-bd)', solid:'var(--ora-solid)'},
+    {l:'Em aberto',   v:active,  c:'var(--blu)', bg:'var(--blu-bg)', bd:'var(--blu-bd)', solid:'var(--blu-solid)'},
+    {l:'Concluídas',  v:done,    c:'var(--grn)', bg:'var(--grn-bg)', bd:'var(--grn-bd)', solid:'var(--grn-solid)'},
+  ];
+
+  return (
+    <div style={{maxWidth:720,margin:'0 auto',padding:'1.5rem 1rem 4rem'}}>
+
+      {/* Header */}
+      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:'1.75rem'}}>
+        <div style={{width:42,height:42,background:'var(--accent)',borderRadius:11,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:'0 2px 8px rgba(41,82,212,0.30)'}}>
+          <i className="ti ti-clipboard-check" style={{color:'#fff',fontSize:22}} />
+        </div>
+        <div>
+          <h1 style={{fontSize:18,fontWeight:700,color:'var(--text)'}}>Controle de Tarefas</h1>
+          <p style={{fontSize:12,color:'var(--text3)',fontWeight:500}}>Engenharia e Manutenção — Minas Tênis Clube</p>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:'1.5rem'}}>
+        {stats.map(s=>(
+          <div key={s.l} style={{background:s.bg,border:'2px solid '+s.bd,borderRadius:'var(--r-md)',padding:'12px 14px'}}>
+            <div style={{fontSize:26,fontWeight:700,color:s.solid}}>{s.v}</div>
+            <div style={{fontSize:11,fontWeight:600,color:s.c,marginTop:2,lineHeight:1.3}}>{s.l}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Nova tarefa */}
+      {!showForm && (
+        <button className="bp" onClick={()=>setShowForm(true)} style={{width:'100%',padding:12,marginBottom:'1.25rem',fontSize:14,letterSpacing:'0.01em'}}>
+          <i className="ti ti-plus" style={{marginRight:6}} />
+          Nova tarefa
+        </button>
+      )}
+      {showForm && <NewTaskForm onAdd={addTask} onCancel={()=>setShowForm(false)} />}
+
+      {/* Filtros */}
+      <div style={{display:'grid',gap:8,marginBottom:'1.25rem'}}>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍  Buscar tarefas..." style={{fontWeight:500}} />
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+          <select value={fStatus} onChange={e=>setFStatus(e.target.value)} style={{fontSize:13,fontWeight:500}}>
+            <option value="ativas">Todas em aberto</option>
+            <option value="naoFez">A fazer</option>
+            <option value="emAndamento">Em andamento</option>
+            <option value="atrasadas">Atrasadas</option>
+          </select>
+          <select value={fCat} onChange={e=>setFCat(e.target.value)} style={{fontSize:13,fontWeight:500}}>
+            <option value="todas">Todas as categorias</option>
+            {CATS.map(c=><option key={c.v} value={c.v}>{c.l}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* Lista ativas */}
+      {activeTasks.length === 0 ? (
+        <div style={{textAlign:'center',padding:'2.5rem 1rem',color:'var(--text3)',background:'var(--surface)',borderRadius:'var(--r-lg)',border:'1.5px dashed var(--border2)'}}>
+          <i className="ti ti-mood-smile" style={{fontSize:38,display:'block',marginBottom:10,color:'var(--grn)'}} />
+          <p style={{fontSize:14,fontWeight:500}}>Nenhuma tarefa em aberto. Tudo certo!</p>
+        </div>
+      ) : (
+        <div style={{display:'grid',gap:12}}>
+          {activeTasks.map(t=><TaskCard key={t.id} task={t} onUpdate={updateTask} onDelete={deleteTask} />)}
+        </div>
+      )}
+
+      {/* Concluídas — colapsável */}
+      {done > 0 && (
+        <div style={{marginTop:'2rem'}}>
+          <button onClick={()=>setShowDone(v=>!v)} style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'10px 14px',background:'var(--grn-bg)',border:'1.5px solid var(--grn-bd)',borderRadius:'var(--r-md)',color:'var(--grn)',fontWeight:600,fontSize:13}}>
+            <i className={"ti "+(showDone?'ti-chevron-up':'ti-chevron-down')} />
+            {showDone ? 'Ocultar concluídas' : `Ver tarefas concluídas (${done})`}
+          </button>
+          {showDone && (
+            <div style={{display:'grid',gap:12,marginTop:12,opacity:0.75}}>
+              {doneTasks.map(t=><TaskCard key={t.id} task={t} onUpdate={updateTask} onDelete={deleteTask} />)}
+            </div>
+          )}
+        </div>
+      )}
+
+      <p style={{textAlign:'center',fontSize:11,color:'var(--text3)',marginTop:'2.5rem',fontWeight:500}}>
+        Dados salvos localmente · {tasks.length} tarefa{tasks.length!==1?'s':''} no total
+      </p>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
