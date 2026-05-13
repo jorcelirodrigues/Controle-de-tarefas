@@ -98,10 +98,10 @@ const CATS = [
   {v:'pmi',l:'PMI / 3D Printing'},{v:'contrato',l:'Contrato / Aprovação'},
 ];
 const PRIOS = [
-  {v:'baixa',l:'Baixa',c:'var(--grn)',bg:'var(--grn-bg)',dot:'#00a844'},
-  {v:'normal',l:'Normal',c:'#7a5800',bg:'#fffbeb',dot:'#e0a800'},
-  {v:'alta',l:'Alta',c:'var(--ora)',bg:'var(--ora-bg)',dot:'var(--ora-solid)'},
-  {v:'urgente',l:'Urgente',c:'var(--red)',bg:'var(--red-bg)',dot:'var(--red-solid)'},
+  {v:'baixa',   l:'Baixa',   solid:'#1a7a3c', bg:'#1a7a3c',   text:'#fff'},
+  {v:'normal',  l:'Normal',  solid:'#1a6eb8', bg:'#1a6eb8',   text:'#fff'},
+  {v:'alta',    l:'Alta',    solid:'#d46b00', bg:'#d46b00',   text:'#fff'},
+  {v:'urgente', l:'Urgente', solid:'#c4000c', bg:'#c4000c',   text:'#fff'},
 ];
 
 function daysUntil(d) {
@@ -184,8 +184,8 @@ function TaskCard({task,onUpdate,onDelete,saving}) {
       {task.description&&<p style={{fontSize:13,color:'var(--text2)',marginBottom:10,lineHeight:1.5}}>{task.description}</p>}
       <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:12}}>
         <DueBadge dueDate={task.dueDate} status={task.status}/>
-        {prio&&<span style={{display:'inline-flex',alignItems:'center',gap:5,fontSize:12,fontWeight:600,color:prio.c,background:prio.bg,padding:'3px 9px',borderRadius:20}}>
-          <span style={{width:7,height:7,borderRadius:'50%',background:prio.dot,display:'inline-block'}}/>{prio.l}
+        {prio&&<span style={{display:'inline-flex',alignItems:'center',fontSize:12,fontWeight:700,color:prio.text,background:prio.bg,padding:'3px 10px',borderRadius:20,letterSpacing:'0.01em'}}>
+          {prio.l}
         </span>}
         {cat&&<span style={{fontSize:12,fontWeight:500,color:'var(--text2)',background:'var(--surface2)',border:'1px solid var(--border)',padding:'3px 9px',borderRadius:20}}>{cat.l}</span>}
       </div>
